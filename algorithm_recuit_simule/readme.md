@@ -32,5 +32,7 @@ Conditions d'arrêt : 500 itérations avec la même solution, 8000 itérations a
 
 6. **Auteurs :**
 BEN JAAFAR Chaima
+
 OUATTOU Fatima
+
 BOUSSELHAM Oumaima
