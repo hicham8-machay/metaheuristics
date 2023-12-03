@@ -1,0 +1,233 @@
+import random
+import time
+import copy
+from itertools import combinations
+import math
+import hashlib
+import numpy as np
+from random import randint
+
+class TabuSearch:
+
+    def __init__(self, coordinates) -> None:
+        self.coordinates = coordinates
+        self.number_city = len(coordinates)
+        self.distance_list = self.calculate_distances()
+        self.iteration = 500
+        self.tabu_length = 10
+        self.tabu_list = []
+        self.diversify_interval = 10 #setting the interval to -1 means no diversification
+
+    #Read node coordinates from the input file
+    @staticmethod
+    def read_coordinates(file_path):
+        coordinates = []
+        with open(file_path, "r") as f:
+            in_node_coord_section = False
+            for line in f:
+                if in_node_coord_section:
+                    if line.strip() == "EOF":
+                        break
+                    parts = line.split()
+                    x = float(parts[1])
+                    y = float(parts[2])
+                    coordinates.append((x, y))
+                elif line.strip() == "NODE_COORD_SECTION":
+                    in_node_coord_section = True
+        return coordinates
+
+
+    #Calculate Euclidean distances between nodes
+    def calculate_distances(self):
+        distance_list = [[0.0] * self.number_city for _ in range(self.number_city)]
+        for i in range(self.number_city):
+            for j in range(self.number_city):
+                x1, y1 = self.coordinates[i]
+                x2, y2 = self.coordinates[j]
+                distance = round(math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2))
+                distance_list[i][j] = distance
+        return distance_list
+
+    #Generate an initial route based on node coordinates
+    def initial_route(self):
+        route = list(range(self.number_city))
+        random.shuffle(route)
+        cost = self.calculate_cost(route)
+        return route, cost
+
+    #Calculate the total distance of a route
+    def calculate_cost(self, route):
+        cost = 0
+        for i in range(len(route)):
+            current_node = route[i]
+            next_node = route[(i + 1) % self.number_city]
+            cost += self.distance_list[current_node][next_node]
+        return cost
+    
+    #Perform swap
+    def swap(self, route, index1, index2):
+        swap_route = copy.deepcopy(route)
+        swap_route[index1] = route[index2]
+        swap_route[index2] = route[index1]
+        return swap_route
+    
+    #Perform Two-opt
+    def two_opt(self, route, start, end):
+        new_route = copy.deepcopy(route)
+        new_route[start:end+1] = reversed(route[start:end+1])
+        return new_route
+    
+    #Perform Or-opt
+    def or_opt(self, route, index1, index2):
+        new_route = copy.deepcopy(route)
+        segment = new_route[index1:index2+1]
+        del new_route[index1:index2+1]
+        new_position = random.randint(0, len(new_route))
+        new_route[new_position:new_position] = segment
+        return new_route
+    
+    #Hash a solution to store it in tabu list
+    def tsp_solution_hash(self,solution):
+        solution_str = ','.join(map(str, solution))
+        hash_object = hashlib.sha256(solution_str.encode())
+        hash_value = hash_object.hexdigest()
+        return hash_value
+
+    #Check if a solution is in tabu list
+    def is_in_tabu_list(self, tabu):
+        return tabu in self.tabu_list
+
+    #Add a solution to tabu list
+    def add_tabu_list(self, tabu):
+        self.tabu_list.append(tabu)
+        if len(self.tabu_list) > self.tabu_length:
+            self.tabu_list.pop(0)
+
+    #Implement a random move for diversification
+    def diversify(self, route):
+        #diversification_move = self.swap(route, random.randint(0, self.number_city - 1), random.randint(0, self.number_city - 1))
+        #diversification_move = self.two_opt(route, random.randint(0, self.number_city - 1), random.randint(0, self.number_city - 1))
+        diversification_move = self.or_opt(route, random.randint(0, self.number_city - 1), random.randint(0, self.number_city - 1))
+        return diversification_move
+
+    #Generate neighbourhood based on given solution by performing two-opt swap
+    def two_opt_swap(self,route):
+        neighbors = []
+        
+        for i in range(52):
+            node1 = 0
+            node2 = 0
+            
+            while node1 == node2:
+                node1 = randint(1, len(route)-1)
+                node2 = randint(1, len(route)-1)
+                
+            if node1 > node2:
+                swap = node1
+                node1 = node2
+                node2 = swap
+                
+            
+            tmp = route[node1:node2]
+            tmp_route = route[:node1] + tmp[::-1] +route[node2:]
+            neighbors.append(tmp_route)
+            
+        return neighbors
+
+    #Tabu search
+    def tabu_search(self, route):
+        results = []
+        best_candidate = copy.deepcopy(route)
+        best_candidate_cost = self.calculate_cost(best_candidate)
+        results.append(route)
+
+        while self.iteration > 0:
+            diversify_counter = 0
+            
+            #Instead of looking for all possible combinations (takes too much time) in a solution to generate a new neighbourhood then performing a swap or two-opt or or-opt
+            #We will use a method that generate a neighbourhood while doing two opt and swap at the same time
+            #for i in combinations(neighborhoods, 2):  
+                #current_candidate = self.swap(neighborhoods, i[0], i[1])
+                #current_candidate = self.two_opt(neighborhoods, i[0], i[1])
+                #current_candidate = self.or_opt(neighborhoods, i[0], i[1])
+
+            start = time.time()
+            neighbors = self.two_opt_swap(route) 
+            end = time.time()
+            #print("combinations took",end-start)
+
+            for sol in neighbors:
+                current_candidate = sol
+                current_candidate_cost = self.calculate_cost(current_candidate)
+                current_candidate_hash = self.tsp_solution_hash(current_candidate)
+
+                if current_candidate_cost < best_candidate_cost or not self.is_in_tabu_list(current_candidate_hash):
+                        best_candidate = current_candidate
+                        best_candidate_cost = current_candidate_cost
+                        tabu = current_candidate_hash
+                        self.add_tabu_list(tabu)
+            if best_candidate_cost < self.calculate_cost(route):
+                route = best_candidate
+
+            results.append(best_candidate)
+
+            self.iteration -= 1
+            diversify_counter += 1
+
+            # Diversify after a certain number of iterations
+            if diversify_counter >= self.diversify_interval:
+                route = self.diversify(route)
+                diversify_counter = 0
+
+        return route, results
+
+if __name__ == "__main__":
+    file_path = "berlin52.tsp"
+    coordinates = TabuSearch.read_coordinates(file_path)
+    print("Coordinates read from the file:")
+    for i, (x, y) in enumerate(coordinates):
+        print(f"Node {i + 1}: x={x}, y={y}")
+
+    best_solution_cost = float('inf')
+    worst_solution_cost = float('-inf')
+    total_solution_cost = 0
+    total_execution_time = 0
+    all_solutions = []
+
+    for _ in range(10):
+        ts = TabuSearch(coordinates)
+        route, initial_cost = ts.initial_route()
+        print("Running ...")
+
+        t = time.time()
+        best_route, _ = ts.tabu_search(route)
+        execution_time = time.time() - t
+        cost = ts.calculate_cost(best_route)
+
+        all_solutions.append((best_route, cost))
+        total_solution_cost += cost
+        total_execution_time += execution_time
+
+        if cost < best_solution_cost:
+            best_solution_cost = cost
+            best_solution_route = best_route
+
+        if cost > worst_solution_cost:
+            worst_solution_cost = cost
+            worst_solution_route = best_route
+
+    average_solution_cost = total_solution_cost / 10
+    average_execution_time = total_execution_time / 10
+
+    print()
+    print("Results:")
+    print(f'Highest cost: {worst_solution_cost}')
+    print(f'Worst solution: {worst_solution_route}')
+    print()
+    print(f'Lowest cost: {best_solution_cost}')
+    print(f'Best solution: {best_solution_route}')
+    print()
+    print(f'Average cost: {average_solution_cost}')
+    print()
+    print(f'Average time spent: {average_execution_time} seconds')
+    print(f'Total time spent: {total_execution_time} seconds')
