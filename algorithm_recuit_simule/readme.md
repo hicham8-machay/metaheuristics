@@ -25,12 +25,15 @@ Le script charge les instances du TSP à partir d'un répertoire Google Drive. V
 Le script produit en sortie le meilleur trajet trouvé, sa distance, ainsi que des informations liées à la convergence telles que les coûts maximum, minimum et moyens. Il trace également les trajets finaux à l'aide de matplotlib.
 
 5. **Paramètres :**
+   
 Température initiale : 50
+
 Alpha (facteur de réduction de la température) varie de 0.85 a 0.99
+
 Conditions d'arrêt : 500 itérations avec la même solution, 8000 itérations avec la même différence de coût.
 
 
-6. **Auteurs :**
+7. **Auteurs :**
 
 BEN JAAFAR Chaima
 
