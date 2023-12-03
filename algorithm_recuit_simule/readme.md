@@ -9,7 +9,9 @@ Ce script Python implémente l'algorithme du recuit simulé pour résoudre le Pr
    pip install tsplib95 
 
 tsplib95 : Un package Python pour travailler avec des instances du problème TSP.
+
 matplotlib : Une bibliothèque de tracé 2D pour créer des visualisations.
+
 Google Colab : Utilisé pour monter Google Drive et charger les instances du TSP.
 
 2. **Algorithme :**
